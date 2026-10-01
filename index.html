@@ -1,0 +1,1354 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cartographie santé numérique Togo</title>
+<meta name="description" content="Carte interactive des structures et des initiatives de santé numérique au Togo, issue de l'enquête de cartographie des parties prenantes 2026.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout : application plein écran - bandeau, panneau d'exploration à gauche, carte à droite ; sur téléphone la carte passe au-dessus du panneau. */
+:root {
+  --bg: #f6f7f3;
+  --surface: #ffffff;
+  --surface-2: #eef1ea;
+  --fg: #1c2420;
+  --muted: #5d6a62;
+  --line: #d9dfd6;
+  --porteur: #0d6b4b;          /* structures porteuses : vert */
+  --porteur-soft: #d5ebe1;
+  --projet: #e2a400;           /* initiatives et zones : jaune or */
+  --projet-ink: #7a5600;
+  --projet-soft: #fbefc8;
+  --land: #f1f2ec;
+  --q1: #fbf0cc; --q2: #f6dc8a; --q3: #efc44b; --q4: #dea20f; --q5: #b47c00;
+  --focus: #1a5fd0;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111613; --surface: #171e1a; --surface-2: #1f2822; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3730;
+    --porteur: #3fbf8c; --porteur-soft: #173a2c; --projet: #f2bd2c; --projet-ink: #f6d36f; --projet-soft: #3a3016;
+    --land: #1a211d; --q1: #3a3418; --q2: #5e4d14; --q3: #8a6c10; --q4: #b88d0d; --q5: #e8b520; --focus: #7fb0ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111613; --surface: #171e1a; --surface-2: #1f2822; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3730;
+  --porteur: #3fbf8c; --porteur-soft: #173a2c; --projet: #f2bd2c; --projet-ink: #f6d36f; --projet-soft: #3a3016;
+  --land: #1a211d; --q1: #3a3418; --q2: #5e4d14; --q3: #8a6c10; --q4: #b88d0d; --q5: #e8b520; --focus: #7fb0ff;
+  color-scheme: dark;
+}
+
+/* required styles */
+
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer {
+	position: absolute;
+	left: 0;
+	top: 0;
+	}
+.leaflet-container {
+	overflow: hidden;
+	}
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+	-webkit-user-select: none;
+	   -moz-user-select: none;
+	        user-select: none;
+	  -webkit-user-drag: none;
+	}
+/* Prevents IE11 from highlighting tiles in blue */
+.leaflet-tile::selection {
+	background: transparent;
+}
+/* Safari renders non-retina tile on retina better with this, but Chrome is worse */
+.leaflet-safari .leaflet-tile {
+	image-rendering: -webkit-optimize-contrast;
+	}
+/* hack that prevents hw layers "stretching" when loading new tiles */
+.leaflet-safari .leaflet-tile-container {
+	width: 1600px;
+	height: 1600px;
+	-webkit-transform-origin: 0 0;
+	}
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+	display: block;
+	}
+/* .leaflet-container svg: reset svg max-width decleration shipped in Joomla! (joomla.org) 3.x */
+/* .leaflet-container img: map is broken in FF if you have max-width: 100% on tiles */
+.leaflet-container .leaflet-overlay-pane svg {
+	max-width: none !important;
+	max-height: none !important;
+	}
+.leaflet-container .leaflet-marker-pane img,
+.leaflet-container .leaflet-shadow-pane img,
+.leaflet-container .leaflet-tile-pane img,
+.leaflet-container img.leaflet-image-layer,
+.leaflet-container .leaflet-tile {
+	max-width: none !important;
+	max-height: none !important;
+	width: auto;
+	padding: 0;
+	}
+
+.leaflet-container img.leaflet-tile {
+	/* See: https://bugs.chromium.org/p/chromium/issues/detail?id=600120 */
+	mix-blend-mode: plus-lighter;
+}
+
+.leaflet-container.leaflet-touch-zoom {
+	-ms-touch-action: pan-x pan-y;
+	touch-action: pan-x pan-y;
+	}
+.leaflet-container.leaflet-touch-drag {
+	-ms-touch-action: pinch-zoom;
+	/* Fallback for FF which doesn't support pinch-zoom */
+	touch-action: none;
+	touch-action: pinch-zoom;
+}
+.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom {
+	-ms-touch-action: none;
+	touch-action: none;
+}
+.leaflet-container {
+	-webkit-tap-highlight-color: transparent;
+}
+.leaflet-container a {
+	-webkit-tap-highlight-color: rgba(51, 181, 229, 0.4);
+}
+.leaflet-tile {
+	filter: inherit;
+	visibility: hidden;
+	}
+.leaflet-tile-loaded {
+	visibility: inherit;
+	}
+.leaflet-zoom-box {
+	width: 0;
+	height: 0;
+	-moz-box-sizing: border-box;
+	     box-sizing: border-box;
+	z-index: 800;
+	}
+/* workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=888319 */
+.leaflet-overlay-pane svg {
+	-moz-user-select: none;
+	}
+
+.leaflet-pane         { z-index: 400; }
+
+.leaflet-tile-pane    { z-index: 200; }
+.leaflet-overlay-pane { z-index: 400; }
+.leaflet-shadow-pane  { z-index: 500; }
+.leaflet-marker-pane  { z-index: 600; }
+.leaflet-tooltip-pane   { z-index: 650; }
+.leaflet-popup-pane   { z-index: 700; }
+
+.leaflet-map-pane canvas { z-index: 100; }
+.leaflet-map-pane svg    { z-index: 200; }
+
+.leaflet-vml-shape {
+	width: 1px;
+	height: 1px;
+	}
+.lvml {
+	behavior: url(#default#VML);
+	display: inline-block;
+	position: absolute;
+	}
+
+
+/* control positioning */
+
+.leaflet-control {
+	position: relative;
+	z-index: 800;
+	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+	pointer-events: auto;
+	}
+.leaflet-top,
+.leaflet-bottom {
+	position: absolute;
+	z-index: 1000;
+	pointer-events: none;
+	}
+.leaflet-top {
+	top: 0;
+	}
+.leaflet-right {
+	right: 0;
+	}
+.leaflet-bottom {
+	bottom: 0;
+	}
+.leaflet-left {
+	left: 0;
+	}
+.leaflet-control {
+	float: left;
+	clear: both;
+	}
+.leaflet-right .leaflet-control {
+	float: right;
+	}
+.leaflet-top .leaflet-control {
+	margin-top: 10px;
+	}
+.leaflet-bottom .leaflet-control {
+	margin-bottom: 10px;
+	}
+.leaflet-left .leaflet-control {
+	margin-left: 10px;
+	}
+.leaflet-right .leaflet-control {
+	margin-right: 10px;
+	}
+
+
+/* zoom and fade animations */
+
+.leaflet-fade-anim .leaflet-popup {
+	opacity: 0;
+	-webkit-transition: opacity 0.2s linear;
+	   -moz-transition: opacity 0.2s linear;
+	        transition: opacity 0.2s linear;
+	}
+.leaflet-fade-anim .leaflet-map-pane .leaflet-popup {
+	opacity: 1;
+	}
+.leaflet-zoom-animated {
+	-webkit-transform-origin: 0 0;
+	    -ms-transform-origin: 0 0;
+	        transform-origin: 0 0;
+	}
+svg.leaflet-zoom-animated {
+	will-change: transform;
+}
+
+.leaflet-zoom-anim .leaflet-zoom-animated {
+	-webkit-transition: -webkit-transform 0.25s cubic-bezier(0,0,0.25,1);
+	   -moz-transition:    -moz-transform 0.25s cubic-bezier(0,0,0.25,1);
+	        transition:         transform 0.25s cubic-bezier(0,0,0.25,1);
+	}
+.leaflet-zoom-anim .leaflet-tile,
+.leaflet-pan-anim .leaflet-tile {
+	-webkit-transition: none;
+	   -moz-transition: none;
+	        transition: none;
+	}
+
+.leaflet-zoom-anim .leaflet-zoom-hide {
+	visibility: hidden;
+	}
+
+
+/* cursors */
+
+.leaflet-interactive {
+	cursor: pointer;
+	}
+.leaflet-grab {
+	cursor: -webkit-grab;
+	cursor:    -moz-grab;
+	cursor:         grab;
+	}
+.leaflet-crosshair,
+.leaflet-crosshair .leaflet-interactive {
+	cursor: crosshair;
+	}
+.leaflet-popup-pane,
+.leaflet-control {
+	cursor: auto;
+	}
+.leaflet-dragging .leaflet-grab,
+.leaflet-dragging .leaflet-grab .leaflet-interactive,
+.leaflet-dragging .leaflet-marker-draggable {
+	cursor: move;
+	cursor: -webkit-grabbing;
+	cursor:    -moz-grabbing;
+	cursor:         grabbing;
+	}
+
+/* marker & overlays interactivity */
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-image-layer,
+.leaflet-pane > svg path,
+.leaflet-tile-container {
+	pointer-events: none;
+	}
+
+.leaflet-marker-icon.leaflet-interactive,
+.leaflet-image-layer.leaflet-interactive,
+.leaflet-pane > svg path.leaflet-interactive,
+svg.leaflet-image-layer.leaflet-interactive path {
+	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+	pointer-events: auto;
+	}
+
+/* visual tweaks */
+
+.leaflet-container {
+	background: #ddd;
+	outline-offset: 1px;
+	}
+.leaflet-container a {
+	color: #0078A8;
+	}
+.leaflet-zoom-box {
+	border: 2px dotted #38f;
+	background: rgba(255,255,255,0.5);
+	}
+
+
+/* general typography */
+.leaflet-container {
+	font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	font-size: 0.75rem;
+	line-height: 1.5;
+	}
+
+
+/* general toolbar styles */
+
+.leaflet-bar {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+	border-radius: 4px;
+	}
+.leaflet-bar a {
+	background-color: #fff;
+	border-bottom: 1px solid #ccc;
+	width: 26px;
+	height: 26px;
+	line-height: 26px;
+	display: block;
+	text-align: center;
+	text-decoration: none;
+	color: black;
+	}
+.leaflet-bar a,
+.leaflet-control-layers-toggle {
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	display: block;
+	}
+.leaflet-bar a:hover,
+.leaflet-bar a:focus {
+	background-color: #f4f4f4;
+	}
+.leaflet-bar a:first-child {
+	border-top-left-radius: 4px;
+	border-top-right-radius: 4px;
+	}
+.leaflet-bar a:last-child {
+	border-bottom-left-radius: 4px;
+	border-bottom-right-radius: 4px;
+	border-bottom: none;
+	}
+.leaflet-bar a.leaflet-disabled {
+	cursor: default;
+	background-color: #f4f4f4;
+	color: #bbb;
+	}
+
+.leaflet-touch .leaflet-bar a {
+	width: 30px;
+	height: 30px;
+	line-height: 30px;
+	}
+.leaflet-touch .leaflet-bar a:first-child {
+	border-top-left-radius: 2px;
+	border-top-right-radius: 2px;
+	}
+.leaflet-touch .leaflet-bar a:last-child {
+	border-bottom-left-radius: 2px;
+	border-bottom-right-radius: 2px;
+	}
+
+/* zoom control */
+
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+	font: bold 18px 'Lucida Console', Monaco, monospace;
+	text-indent: 1px;
+	}
+
+.leaflet-touch .leaflet-control-zoom-in, .leaflet-touch .leaflet-control-zoom-out  {
+	font-size: 22px;
+	}
+
+
+/* layers control */
+
+.leaflet-control-layers {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+	background: #fff;
+	border-radius: 5px;
+	}
+.leaflet-control-layers-toggle {
+	background-image: url(images/layers.png);
+	width: 36px;
+	height: 36px;
+	}
+.leaflet-retina .leaflet-control-layers-toggle {
+	background-image: url(images/layers-2x.png);
+	background-size: 26px 26px;
+	}
+.leaflet-touch .leaflet-control-layers-toggle {
+	width: 44px;
+	height: 44px;
+	}
+.leaflet-control-layers .leaflet-control-layers-list,
+.leaflet-control-layers-expanded .leaflet-control-layers-toggle {
+	display: none;
+	}
+.leaflet-control-layers-expanded .leaflet-control-layers-list {
+	display: block;
+	position: relative;
+	}
+.leaflet-control-layers-expanded {
+	padding: 6px 10px 6px 6px;
+	color: #333;
+	background: #fff;
+	}
+.leaflet-control-layers-scrollbar {
+	overflow-y: scroll;
+	overflow-x: hidden;
+	padding-right: 5px;
+	}
+.leaflet-control-layers-selector {
+	margin-top: 2px;
+	position: relative;
+	top: 1px;
+	}
+.leaflet-control-layers label {
+	display: block;
+	font-size: 13px;
+	font-size: 1.08333em;
+	}
+.leaflet-control-layers-separator {
+	height: 0;
+	border-top: 1px solid #ddd;
+	margin: 5px -10px 5px -6px;
+	}
+
+/* Default icon URLs */
+.leaflet-default-icon-path { /* used only in path-guessing heuristic, see L.Icon.Default */
+	background-image: url(images/marker-icon.png);
+	}
+
+
+/* attribution and scale controls */
+
+.leaflet-container .leaflet-control-attribution {
+	background: #fff;
+	background: rgba(255, 255, 255, 0.8);
+	margin: 0;
+	}
+.leaflet-control-attribution,
+.leaflet-control-scale-line {
+	padding: 0 5px;
+	color: #333;
+	line-height: 1.4;
+	}
+.leaflet-control-attribution a {
+	text-decoration: none;
+	}
+.leaflet-control-attribution a:hover,
+.leaflet-control-attribution a:focus {
+	text-decoration: underline;
+	}
+.leaflet-attribution-flag {
+	display: inline !important;
+	vertical-align: baseline !important;
+	width: 1em;
+	height: 0.6669em;
+	}
+.leaflet-left .leaflet-control-scale {
+	margin-left: 5px;
+	}
+.leaflet-bottom .leaflet-control-scale {
+	margin-bottom: 5px;
+	}
+.leaflet-control-scale-line {
+	border: 2px solid #777;
+	border-top: none;
+	line-height: 1.1;
+	padding: 2px 5px 1px;
+	white-space: nowrap;
+	-moz-box-sizing: border-box;
+	     box-sizing: border-box;
+	background: rgba(255, 255, 255, 0.8);
+	text-shadow: 1px 1px #fff;
+	}
+.leaflet-control-scale-line:not(:first-child) {
+	border-top: 2px solid #777;
+	border-bottom: none;
+	margin-top: -2px;
+	}
+.leaflet-control-scale-line:not(:first-child):not(:last-child) {
+	border-bottom: 2px solid #777;
+	}
+
+.leaflet-touch .leaflet-control-attribution,
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+	box-shadow: none;
+	}
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+	border: 2px solid rgba(0,0,0,0.2);
+	background-clip: padding-box;
+	}
+
+
+/* popup */
+
+.leaflet-popup {
+	position: absolute;
+	text-align: center;
+	margin-bottom: 20px;
+	}
+.leaflet-popup-content-wrapper {
+	padding: 1px;
+	text-align: left;
+	border-radius: 12px;
+	}
+.leaflet-popup-content {
+	margin: 13px 24px 13px 20px;
+	line-height: 1.3;
+	font-size: 13px;
+	font-size: 1.08333em;
+	min-height: 1px;
+	}
+.leaflet-popup-content p {
+	margin: 17px 0;
+	margin: 1.3em 0;
+	}
+.leaflet-popup-tip-container {
+	width: 40px;
+	height: 20px;
+	position: absolute;
+	left: 50%;
+	margin-top: -1px;
+	margin-left: -20px;
+	overflow: hidden;
+	pointer-events: none;
+	}
+.leaflet-popup-tip {
+	width: 17px;
+	height: 17px;
+	padding: 1px;
+
+	margin: -10px auto 0;
+	pointer-events: auto;
+
+	-webkit-transform: rotate(45deg);
+	   -moz-transform: rotate(45deg);
+	    -ms-transform: rotate(45deg);
+	        transform: rotate(45deg);
+	}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+	background: white;
+	color: #333;
+	box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+	}
+.leaflet-container a.leaflet-popup-close-button {
+	position: absolute;
+	top: 0;
+	right: 0;
+	border: none;
+	text-align: center;
+	width: 24px;
+	height: 24px;
+	font: 16px/24px Tahoma, Verdana, sans-serif;
+	color: #757575;
+	text-decoration: none;
+	background: transparent;
+	}
+.leaflet-container a.leaflet-popup-close-button:hover,
+.leaflet-container a.leaflet-popup-close-button:focus {
+	color: #585858;
+	}
+.leaflet-popup-scrolled {
+	overflow: auto;
+	}
+
+.leaflet-oldie .leaflet-popup-content-wrapper {
+	-ms-zoom: 1;
+	}
+.leaflet-oldie .leaflet-popup-tip {
+	width: 24px;
+	margin: 0 auto;
+
+	-ms-filter: "progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678)";
+	filter: progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678);
+	}
+
+.leaflet-oldie .leaflet-control-zoom,
+.leaflet-oldie .leaflet-control-layers,
+.leaflet-oldie .leaflet-popup-content-wrapper,
+.leaflet-oldie .leaflet-popup-tip {
+	border: 1px solid #999;
+	}
+
+
+/* div icon */
+
+.leaflet-div-icon {
+	background: #fff;
+	border: 1px solid #666;
+	}
+
+
+/* Tooltip */
+/* Base styles for the element that has a tooltip */
+.leaflet-tooltip {
+	position: absolute;
+	padding: 6px;
+	background-color: #fff;
+	border: 1px solid #fff;
+	border-radius: 3px;
+	color: #222;
+	white-space: nowrap;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+	pointer-events: none;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+	}
+.leaflet-tooltip.leaflet-interactive {
+	cursor: pointer;
+	pointer-events: auto;
+	}
+.leaflet-tooltip-top:before,
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before {
+	position: absolute;
+	pointer-events: none;
+	border: 6px solid transparent;
+	background: transparent;
+	content: "";
+	}
+
+/* Directions */
+
+.leaflet-tooltip-bottom {
+	margin-top: 6px;
+}
+.leaflet-tooltip-top {
+	margin-top: -6px;
+}
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-top:before {
+	left: 50%;
+	margin-left: -6px;
+	}
+.leaflet-tooltip-top:before {
+	bottom: 0;
+	margin-bottom: -12px;
+	border-top-color: #fff;
+	}
+.leaflet-tooltip-bottom:before {
+	top: 0;
+	margin-top: -12px;
+	margin-left: -6px;
+	border-bottom-color: #fff;
+	}
+.leaflet-tooltip-left {
+	margin-left: -6px;
+}
+.leaflet-tooltip-right {
+	margin-left: 6px;
+}
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before {
+	top: 50%;
+	margin-top: -6px;
+	}
+.leaflet-tooltip-left:before {
+	right: 0;
+	margin-right: -12px;
+	border-left-color: #fff;
+	}
+.leaflet-tooltip-right:before {
+	left: 0;
+	margin-left: -12px;
+	border-right-color: #fff;
+	}
+
+/* Printing */
+
+@media print {
+	/* Prevent printers from removing background-images of controls. */
+	.leaflet-control {
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+		}
+	}
+
+.leaflet-cluster-anim .leaflet-marker-icon, .leaflet-cluster-anim .leaflet-marker-shadow {
+	-webkit-transition: -webkit-transform 0.3s ease-out, opacity 0.3s ease-in;
+	-moz-transition: -moz-transform 0.3s ease-out, opacity 0.3s ease-in;
+	-o-transition: -o-transform 0.3s ease-out, opacity 0.3s ease-in;
+	transition: transform 0.3s ease-out, opacity 0.3s ease-in;
+}
+
+.leaflet-cluster-spider-leg {
+	/* stroke-dashoffset (duration and function) should match with leaflet-marker-icon transform in order to track it exactly */
+	-webkit-transition: -webkit-stroke-dashoffset 0.3s ease-out, -webkit-stroke-opacity 0.3s ease-in;
+	-moz-transition: -moz-stroke-dashoffset 0.3s ease-out, -moz-stroke-opacity 0.3s ease-in;
+	-o-transition: -o-stroke-dashoffset 0.3s ease-out, -o-stroke-opacity 0.3s ease-in;
+	transition: stroke-dashoffset 0.3s ease-out, stroke-opacity 0.3s ease-in;
+}
+
+
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--font-body); }
+*, *::before, *::after { box-sizing: border-box; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.leaflet-interactive:focus, .leaflet-interactive:focus-visible { outline: none; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+.top {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px;
+  padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--surface);
+}
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.flagmark { width: 34px; height: 24px; flex: none; border-radius: 3px; overflow: hidden; display: grid; grid-template-rows: repeat(5, 1fr); position: relative; }
+.flagmark i:nth-child(odd) { background: var(--porteur); }
+.flagmark i:nth-child(even) { background: var(--projet); }
+.flagmark b { position: absolute; left: 0; top: 0; width: 14px; height: 60%; background: #c8102e; }
+.brand h1 { margin: 0; font: 700 1.15rem/1.15 var(--font-display); letter-spacing: -0.01em; text-wrap: balance; }
+.brand p { margin: 0; color: var(--muted); font-size: 0.82rem; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-left: auto; align-items: baseline; }
+.stat { display: flex; align-items: baseline; gap: 6px; font-size: 0.82rem; color: var(--muted); }
+.stat strong { font: 500 1.15rem/1 var(--font-mono); color: var(--fg); font-variant-numeric: tabular-nums; }
+.linkbtn { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 0.82rem; cursor: pointer; color: var(--fg); }
+.linkbtn:hover { border-color: var(--muted); }
+
+.body { display: grid; grid-template-columns: minmax(320px, 400px) 1fr; min-height: 0; }
+.panel { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); background: var(--surface); }
+.controls { display: grid; gap: 8px; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+.controls .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.field { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+select.field { width: auto; flex: 1 1 160px; min-width: 0; }
+.check { display: inline-flex; gap: 6px; align-items: center; font-size: 0.85rem; color: var(--muted); cursor: pointer; }
+.check input { accent-color: var(--porteur); }
+.tabs { display: flex; gap: 4px; padding: 8px 16px 0; border-bottom: 1px solid var(--line); }
+.tab { border: 0; background: none; padding: 8px 10px; cursor: pointer; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--fg); }
+.tab .n { font: 400 0.78rem var(--font-mono); margin-left: 4px; }
+.content { overflow-y: auto; min-height: 0; padding: 4px 0 24px; }
+
+.list { list-style: none; margin: 0; padding: 0; }
+.item { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; width: 100%; text-align: left; padding: 10px 16px; background: none; border: 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.item:hover { background: var(--surface-2); }
+.item .t { font-weight: 600; line-height: 1.3; }
+.item .s { color: var(--muted); font-size: 0.82rem; }
+.dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 4px; }
+.dot.porteur { background: var(--porteur); }
+.dot.projet { background: var(--projet); border-radius: 3px; }
+.count { font: 500 0.8rem var(--font-mono); color: var(--projet-ink); background: var(--projet-soft); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+.count.zero { color: var(--muted); background: var(--surface-2); }
+.grouphead { font: 600 0.72rem var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 14px 16px 6px; }
+
+.detail { padding: 14px 16px; display: grid; gap: 14px; }
+.back { justify-self: start; border: 0; background: none; padding: 0; color: var(--muted); cursor: pointer; font-size: 0.85rem; }
+.back:hover { color: var(--fg); }
+.eyebrow { font: 600 0.72rem var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+.eyebrow.porteur { color: var(--porteur); }
+.eyebrow.projet { color: var(--projet-ink); }
+.detail h2 { margin: 2px 0 0; font: 700 1.3rem/1.2 var(--font-display); text-wrap: balance; }
+.kv { display: grid; grid-template-columns: 9.5em 1fr; gap: 6px 12px; margin: 0; font-size: 0.88rem; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; min-width: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { font-size: 0.78rem; padding: 2px 8px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--line); }
+.chip.nat { background: var(--projet-soft); border-color: transparent; color: var(--projet-ink); font-weight: 600; }
+.note { font-size: 0.8rem; color: var(--muted); border-left: 3px solid var(--line); padding-left: 10px; }
+.sub { font: 700 0.95rem var(--font-display); margin: 4px 0 0; }
+.pcard { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; background: var(--bg); cursor: pointer; text-align: left; width: 100%; }
+.pcard:hover { border-color: var(--projet); }
+.pcard .t { font-weight: 700; display: flex; gap: 8px; align-items: start; }
+.pcard .t .dot { flex: none; }
+.pcard .d { font-size: 0.85rem; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.desc { font-size: 0.9rem; white-space: pre-line; }
+.stack { display: grid; gap: 8px; }
+.ownerbtn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 4px 12px 4px 8px; cursor: pointer; font-weight: 600; font-size: 0.88rem; justify-self: start; }
+.empty { padding: 24px 16px; color: var(--muted); }
+
+.mapwrap { position: relative; min-height: 0; }
+#map { position: absolute; inset: 0; background: var(--bg); }
+.legend {
+  position: absolute; z-index: 800; left: 12px; bottom: 22px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 12px; font-size: 0.78rem; display: grid; gap: 6px; max-width: 250px; box-shadow: 0 2px 10px rgba(0,0,0,.08);
+}
+.legend h3 { margin: 0; font: 600 0.7rem var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.legend .lrow { display: flex; align-items: center; gap: 8px; }
+.legend .pin-s { width: 14px; height: 14px; border-radius: 50%; background: var(--porteur); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--porteur); }
+.legend .zone-s { width: 16px; height: 12px; background: var(--projet); opacity: .75; border: 1.5px solid var(--projet-ink); }
+.ramp { display: flex; }
+.ramp span { flex: 1; height: 10px; }
+.ramp-l { display: flex; justify-content: space-between; font: 0.72rem var(--font-mono); color: var(--muted); }
+.legend .lchoro { display: grid; gap: 4px; }
+.legend label { cursor: pointer; display: flex; gap: 6px; align-items: center; }
+.mapbtns { position: absolute; z-index: 800; right: 12px; top: 12px; display: grid; gap: 6px; }
+.mapbtn { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 0.82rem; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.mapbtn:hover { border-color: var(--muted); }
+
+/* Leaflet - éléments personnalisés */
+.leaflet-container { background: var(--bg); font-family: var(--font-body); }
+.pin { width: 30px; height: 30px; border-radius: 50%; background: var(--porteur); color: #fff; display: grid; place-items: center; font: 600 12px/1 var(--font-mono); border: 2px solid var(--surface); box-shadow: 0 1px 4px rgba(0,0,0,.35); transition: transform .15s; }
+.pin.zero { background: var(--surface); color: var(--porteur); border: 2px solid var(--porteur); }
+.pin.on { transform: scale(1.25); box-shadow: 0 0 0 4px var(--porteur-soft), 0 1px 4px rgba(0,0,0,.35); }
+.cluster { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--porteur-soft); border: 2px solid var(--porteur); color: var(--porteur); font: 700 13px/1 var(--font-mono); }
+.plabel { background: var(--surface); color: var(--fg); border: 1.5px solid var(--projet); border-left-width: 6px; border-radius: 4px; padding: 3px 8px; font: 600 12px/1.25 var(--font-body); box-shadow: 0 1px 6px rgba(0,0,0,.18); cursor: pointer; transform: translate(-50%, -50%); width: max-content; max-width: 200px; }
+.plabel.nat { border-style: dashed; border-left-style: solid; }
+.plabel small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+.townlabel { font: 500 11px/1 var(--font-body); color: var(--muted); white-space: nowrap; text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg), 0 0 3px var(--bg); transform: translate(6px, -50%); }
+.towndot { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); }
+.leaflet-tooltip.preftip { background: var(--surface); color: var(--fg); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.12); font: 0.8rem var(--font-body); }
+.leaflet-tooltip.preftip::before { display: none; }
+.leaflet-control-attribution { background: color-mix(in srgb, var(--surface) 85%, transparent) !important; color: var(--muted) !important; font-size: 10px; }
+.leaflet-control-attribution a { color: var(--muted) !important; }
+.leaflet-bar a { background: var(--surface); color: var(--fg); border-bottom-color: var(--line); }
+.leaflet-bar a:hover { background: var(--surface-2); }
+.leaflet-bar { border-color: var(--line) !important; }
+
+.about { position: fixed; inset: 0; z-index: 2000; background: rgba(10, 15, 12, .45); display: grid; place-items: center; padding: 16px; }
+.about .box { background: var(--surface); border-radius: 10px; max-width: 640px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 22px 24px; display: grid; gap: 10px; font-size: 0.92rem; }
+.about h2 { margin: 0; font: 700 1.25rem var(--font-display); }
+.about h3 { margin: 8px 0 0; font: 700 0.95rem var(--font-display); }
+.about p, .about ul { margin: 0; }
+.about ul { padding-left: 18px; display: grid; gap: 4px; }
+.about .close { justify-self: end; }
+
+@media (max-width: 760px) {
+  html, body { height: auto; }
+  .app { height: auto; display: block; }
+  .top { padding: 10px 16px; }
+  .stats { margin-left: 0; }
+  .body { display: flex; flex-direction: column-reverse; }
+  .mapwrap { height: 62vh; min-height: 380px; }
+  .panel { border-right: 0; border-top: 1px solid var(--line); }
+  .content { overflow: visible; }
+  .legend { max-width: 175px; bottom: 26px; padding: 6px 8px; gap: 4px; font-size: 0.72rem; }
+  .legend h3 { display: none; }
+  .legend .hide-sm { display: none; }
+  .kv { grid-template-columns: 1fr; gap: 0 0; }
+  .kv dd { margin-bottom: 6px; }
+}
+@media (prefers-reduced-motion: reduce) { .pin { transition: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <span class="flagmark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><b></b></span>
+      <div>
+        <h1>Cartographie des acteurs de la santé numérique au Togo</h1>
+        <p id="subtitle"></p>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <button class="linkbtn" id="aboutBtn" type="button">Méthode et sources</button>
+  </header>
+  <main class="body">
+    <aside class="panel" aria-label="Exploration">
+      <div class="controls">
+        <input id="q" class="field" type="search" placeholder="Rechercher une structure ou une initiative" autocomplete="off">
+        <div class="row">
+          <select id="ftype" class="field" aria-label="Type de structure"><option value="">Tous les types de structure</option></select>
+        </div>
+        <label class="check"><input type="checkbox" id="fact"> inclure les activités générales des formations sanitaires</label>
+      </div>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tab-s" aria-selected="true" type="button">Structures<span class="n" id="n-s"></span></button>
+        <button class="tab" role="tab" id="tab-p" aria-selected="false" type="button">Initiatives<span class="n" id="n-p"></span></button>
+      </div>
+      <div class="content" id="content"></div>
+    </aside>
+    <section class="mapwrap" aria-label="Carte du Togo">
+      <div id="map"></div>
+      <div class="mapbtns">
+        <button class="mapbtn" id="btnTogo" type="button">Tout le Togo</button>
+        <button class="mapbtn" id="btnLome" type="button">Grand Lomé</button>
+      </div>
+      <div class="legend" id="legend">
+        <h3>Légende</h3>
+        <div class="lrow"><span class="pin-s"></span> structure porteuse (nombre d'initiatives)</div>
+        <div class="lrow"><span class="zone-s"></span> zones de l'initiative sélectionnée</div>
+        <div class="hide-sm lchoro">
+          <label><input type="checkbox" id="lchoro" checked> initiatives ciblant chaque préfecture</label>
+          <div class="ramp" id="ramp"></div>
+          <div class="ramp-l" id="rampl"></div>
+        </div>
+        <label class="hide-sm"><input type="checkbox" id="ltiles" checked> fond de carte</label>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="about" id="about" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+    <h2 id="aboutTitle">Méthode et sources</h2>
+    <p id="aboutSrc"></p>
+    <h3>Lecture de la carte</h3>
+    <ul>
+      <li>les points verts situent chaque structure répondante ; le chiffre indique le nombre d'initiatives déclarées ;</li>
+      <li>un clic sur une structure affiche ses initiatives et colore en jaune les préfectures qu'elles couvrent, avec le nom de chaque initiative ;</li>
+      <li>le fond jaune gradué indique combien d'initiatives ciblent explicitement chaque préfecture ; les initiatives de couverture nationale sans zone précisée sont comptées à part ;</li>
+      <li>un clic sur une préfecture liste les initiatives qui la couvrent.</li>
+    </ul>
+    <h3>Traitement des données</h3>
+    <ul>
+      <li>les réponses en double d'une même structure ont été fusionnées, ainsi que les initiatives saisies plusieurs fois ;</li>
+      <li>le questionnaire ne demandait pas de nom d'initiative : un nom court a été attribué à partir de la description ;</li>
+      <li>une région cochée sans préfecture précisée est considérée comme couverte en totalité ;</li>
+      <li>les activités courantes de soins des formations sanitaires sont masquées par défaut.</li>
+    </ul>
+    <h3>Limites</h3>
+    <ul>
+      <li>le questionnaire ne recueillait pas l'adresse des structures : les positions sont approximatives (quartier connu ou siège présumé) et restent à confirmer ;</li>
+      <li>les limites des préfectures proviennent de geoBoundaries (découpage antérieur à 2019) : Golfe et Agoè-Nyivé sont représentées par l'ancienne commune de Lomé et l'ancienne préfecture du Golfe, Kpendjal-Ouest et Oti-Sud par leur préfecture d'origine ;</li>
+      <li>les noms, fonctions et coordonnées des répondants ainsi que les scores d'évaluation des parties prenantes ne sont pas publiés.</li>
+    </ul>
+    <p class="note">Fonds : limites administratives © geoBoundaries (CC BY 4.0) ; fond de plan © Esri, HERE, Garmin, contributeurs OpenStreetMap.</p>
+    <button class="linkbtn close" id="aboutClose" type="button">Fermer</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+<script src="data/data.js"></script>
+<script>
+(function () {
+  "use strict";
+  const META = window.CARTO_META, S = window.CARTO_STRUCTURES, P = window.CARTO_PROJETS;
+  const PREFS = window.CARTO_PREFECTURES, PAYS = window.CARTO_PAYS;
+  const SJ = Object.fromEntries(S.map(s => [s.id, s]));
+  const PJ = Object.fromEntries(P.map(p => [p.id, p]));
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const fmtDate = d => d.split("-").reverse().join("/");
+  const norm = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+  const state = { tab: "s", q: "", type: "", act: false, view: null };
+  const BINS = [1, 2, 3, 5, 8];
+
+  // ---------- en-tête
+  $("subtitle").textContent = `Enquête parties prenantes 2026 · réponses du ${fmtDate(META.premiere_reponse)} au ${fmtDate(META.derniere_reponse)}`;
+  $("aboutSrc").textContent = `Source : ${META.source}. ${META.nb_reponses} réponses reçues, regroupées en ${META.nb_structures} structures et ${META.nb_projets} initiatives ou activités (dont ${META.nb_projets_numeriques} initiatives numériques).`;
+  const nat = P.filter(p => p.categorie === "numerique" && p.national).length;
+  $("stats").innerHTML = [
+    [META.nb_structures, "structures"],
+    [META.nb_projets_numeriques, "initiatives numériques"],
+    [nat, "à portée nationale"],
+    [META.nb_reponses, "réponses"],
+  ].map(([n, l]) => `<span class="stat"><strong>${n}</strong>${l}</span>`).join("");
+
+  [...new Set(S.map(s => s.type))].sort().forEach(t => {
+    const o = document.createElement("option"); o.value = t; o.textContent = t; $("ftype").appendChild(o);
+  });
+
+  // ---------- filtres
+  const projVisible = p => state.act || p.categorie === "numerique";
+  const projetsDe = s => s.projets.map(id => PJ[id]).filter(projVisible);
+  function structMatch(s) {
+    if (state.type && s.type !== state.type) return false;
+    if (!state.q) return true;
+    const q = norm(state.q);
+    return norm(s.nom).includes(q) || projetsDe(s).some(p => norm(p.nom).includes(q) || norm(p.description).includes(q));
+  }
+  function projMatch(p) {
+    if (!projVisible(p)) return false;
+    const s = SJ[p.structure];
+    if (state.type && s.type !== state.type) return false;
+    if (!state.q) return true;
+    const q = norm(state.q);
+    return norm(p.nom).includes(q) || norm(p.description).includes(q) || norm(s.nom).includes(q);
+  }
+
+  // ---------- carte
+  const map = L.map("map", { zoomSnap: 0.25, minZoom: 6, maxZoom: 16, zoomControl: true, attributionControl: true })
+    .setView([8.6, 0.95], 7);
+  map.attributionControl.setPrefix(false);
+  const togoBounds = L.geoJSON(PAYS).getBounds();
+  map.setMaxBounds(togoBounds.pad(0.9));
+  map.createPane("zones"); map.getPane("zones").style.zIndex = 420;
+  map.createPane("liens"); map.getPane("liens").style.zIndex = 430;
+  map.createPane("villes"); map.getPane("villes").style.zIndex = 440; map.getPane("villes").style.pointerEvents = "none";
+  map.createPane("etiquettes"); map.getPane("etiquettes").style.zIndex = 650;
+
+  const dark = () => {
+    const t = document.documentElement.getAttribute("data-theme");
+    return t ? t === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  };
+  // Fond Esri « Canvas » (gris neutre), utilisable sans clé ; contrairement aux serveurs
+  // d'OpenStreetMap, il ne bloque pas les pages ouvertes en local ou intégrées.
+  let tiles = null;
+  const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/";
+  function setTiles() {
+    if (tiles) map.removeLayer(tiles);
+    tiles = null;
+    if (!$("ltiles").checked) return;
+    const t = dark() ? "Dark" : "Light";
+    const opts = { maxZoom: 16, maxNativeZoom: 16, opacity: 0.95 };
+    tiles = L.layerGroup([
+      L.tileLayer(`${ESRI}World_${t}_Gray_Base/MapServer/tile/{z}/{y}/{x}`, Object.assign({
+        attribution: 'Fond &copy; <a href="https://www.esri.com">Esri</a>, HERE, Garmin, &copy; contributeurs OpenStreetMap · limites &copy; <a href="https://www.geoboundaries.org">geoBoundaries</a>',
+      }, opts)),
+      L.tileLayer(`${ESRI}World_${t}_Gray_Reference/MapServer/tile/{z}/{y}/{x}`, Object.assign({ pane: "villes" }, opts)),
+    ]).addTo(map);
+  }
+
+  // villes repères (lisibles même sans fond de plan)
+  const VILLES = [["Lomé", 6.137, 1.212], ["Tsévié", 6.426, 1.213], ["Aného", 6.228, 1.592], ["Kpalimé", 6.900, 0.630], ["Atakpamé", 7.527, 1.127], ["Sokodé", 8.983, 1.133], ["Kara", 9.551, 1.186], ["Bassar", 9.250, 0.783], ["Mango", 10.359, 0.471], ["Dapaong", 10.862, 0.205]];
+  const villes = L.layerGroup(VILLES.map(([n, la, lo]) => L.marker([la, lo], { pane: "villes", interactive: false, keyboard: false,
+    icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<div class="towndot" style="position:absolute;left:-2px;top:-2px"></div><div class="townlabel" style="position:absolute">${n}</div>` }) })));
+
+  // préfectures
+  const counts = {};
+  function computeCounts() {
+    for (const k in counts) delete counts[k];
+    P.filter(projVisible).forEach(p => p.zones_geo.forEach(z => { counts[z] = (counts[z] || 0) + 1; }));
+  }
+  const selActive = () => state.view && (state.view.kind === "struct" || state.view.kind === "proj");
+  function binColor(n) {
+    if (!n || !$("lchoro").checked || selActive()) return css("--land");
+    let i = 0; while (i < BINS.length - 1 && n >= BINS[i + 1]) i++;
+    return css(`--q${i + 1}`);
+  }
+  const prefLayer = L.geoJSON(PREFS, {
+    style: f => ({ color: css("--line"), weight: 1, fillColor: binColor(counts[f.properties.id]), fillOpacity: $("ltiles").checked ? 0.72 : 1 }),
+    onEachFeature: (f, layer) => {
+      layer.on("click", () => go({ kind: "pref", id: f.properties.id }));
+      layer.on("mouseover", () => layer.setStyle({ weight: 2, color: css("--muted") }));
+      layer.on("mouseout", () => prefLayer.resetStyle(layer));
+      layer.bindTooltip(() => {
+        const n = counts[f.properties.id] || 0;
+        return `<strong>${esc(f.properties.nom)}</strong> · ${esc(f.properties.region)}<br>${n} initiative${n > 1 ? "s" : ""} ciblée${n > 1 ? "s" : ""}`;
+      }, { sticky: true, className: "preftip", direction: "top", offset: [0, -8] });
+    },
+  }).addTo(map);
+  const paysLayer = L.geoJSON(PAYS, { interactive: false, style: () => ({ color: css("--fg"), weight: 1.5, fill: false, opacity: 0.6 }) }).addTo(map);
+  villes.addTo(map);
+
+  function drawRamp() {
+    const labels = ["1", "2", "3-4", "5-7", "8+"];
+    $("ramp").innerHTML = BINS.map((_, i) => `<span style="background:var(--q${i + 1})"></span>`).join("");
+    $("rampl").innerHTML = labels.map(l => `<span>${l}</span>`).join("");
+  }
+
+  // marqueurs des structures
+  const cluster = L.markerClusterGroup({
+    showCoverageOnHover: false, maxClusterRadius: 38, spiderfyOnMaxZoom: true, zoomToBoundsOnClick: true,
+    iconCreateFunction: c => L.divIcon({ className: "", html: `<div class="cluster" title="${c.getChildCount()} structures">${c.getChildCount()}</div>`, iconSize: [40, 40], iconAnchor: [20, 20] }),
+  });
+  const markers = {};
+  function pinIcon(s, on) {
+    const n = projetsDe(s).length;
+    return L.divIcon({ className: "", iconSize: [30, 30], iconAnchor: [15, 15],
+      html: `<div class="pin${n ? "" : " zero"}${on ? " on" : ""}" title="${esc(s.nom)}">${n}</div>` });
+  }
+  S.forEach(s => {
+    const m = L.marker([s.lat, s.lng], { icon: pinIcon(s, false), title: s.nom, riseOnHover: true });
+    m.on("click", () => go({ kind: "struct", id: s.id }));
+    m.bindTooltip(esc(s.nom), { className: "preftip", direction: "top", offset: [0, -16] });
+    markers[s.id] = m;
+  });
+  map.addLayer(cluster);
+  function refreshMarkers() {
+    cluster.clearLayers();
+    const sel = state.view && state.view.kind === "struct" ? state.view.id : (state.view && state.view.kind === "proj" ? PJ[state.view.id].structure : null);
+    S.forEach(s => { if (map.hasLayer(markers[s.id]) && !cluster.hasLayer(markers[s.id])) map.removeLayer(markers[s.id]); });
+    S.filter(structMatch).forEach(s => {
+      markers[s.id].setIcon(pinIcon(s, s.id === sel));
+      if (s.id === sel) { markers[s.id].setZIndexOffset(1000).addTo(map); } else { markers[s.id].setZIndexOffset(0); cluster.addLayer(markers[s.id]); }
+    });
+  }
+
+  // surbrillance des initiatives
+  const hl = L.layerGroup().addTo(map);
+  let labelSpecs = [];
+  function featuresFor(ids) { return PREFS.features.filter(f => ids.includes(f.properties.id)); }
+  function centerOf(fs) {
+    // centre pondéré par la surface approximative des emprises
+    let la = 0, lo = 0, w = 0;
+    fs.forEach(f => { const b = L.geoJSON(f).getBounds(); const a = Math.max((b.getNorth() - b.getSouth()) * (b.getEast() - b.getWest()), 1e-4); const c = b.getCenter(); la += c.lat * a; lo += c.lng * a; w += a; });
+    return L.latLng(la / w, lo / w);
+  }
+  function highlight(projs, owner) {
+    hl.clearLayers(); labelSpecs = [];
+    const bounds = L.latLngBounds([]);
+    const ownerLL = owner ? L.latLng(owner.lat, owner.lng) : null;
+    if (ownerLL) bounds.extend(ownerLL);
+    const nationaux = [];
+    projs.forEach(p => {
+      if (p.zones_geo.length) {
+        const fs = featuresFor(p.zones_geo);
+        const g = L.geoJSON({ type: "FeatureCollection", features: fs }, { pane: "zones", interactive: false,
+          style: () => ({ color: css("--projet-ink"), weight: 1.5, fillColor: css("--projet"), fillOpacity: 0.38 }) });
+        hl.addLayer(g); bounds.extend(g.getBounds());
+        if (p.zones_geo.length >= 37) labelSpecs.push({ ll: togoBounds.getCenter(), p, nat: false, sub: "toutes les préfectures" });
+        else {
+          const parReg = {};
+          fs.forEach(f => { (parReg[f.properties.region] = parReg[f.properties.region] || []).push(f); });
+          Object.entries(parReg).forEach(([reg, fr]) => labelSpecs.push({ ll: centerOf(fr), p, nat: false,
+            sub: `${reg} · ${fr.length} préfecture${fr.length > 1 ? "s" : ""}` }));
+        }
+      } else if (p.national) {
+        nationaux.push(p);
+      } else {
+        labelSpecs.push({ ll: null, p, nat: false });
+      }
+    });
+    if (nationaux.length) {
+      hl.addLayer(L.geoJSON(PAYS, { pane: "zones", interactive: false,
+        style: () => ({ color: css("--projet-ink"), weight: 2.5, dashArray: "8 6", fillColor: css("--projet"), fillOpacity: 0.12 }) }));
+      bounds.extend(togoBounds);
+      nationaux.forEach(p => labelSpecs.push({ ll: L.latLng(8.15, 0.95), p, nat: true }));
+    }
+    if (bounds.isValid()) {
+      const sm = window.innerWidth < 760;
+      map.fitBounds(bounds, { paddingTopLeft: sm ? [30, 30] : [290, 60], paddingBottomRight: sm ? [30, 60] : [120, 60], maxZoom: projs.length ? 10 : 13, animate: false });
+    }
+    placeLabels(ownerLL);
+  }
+  function placeLabels(ownerLL) {
+    hl.eachLayer(l => { if (l.options && l.options.isLabel) hl.removeLayer(l); });
+    const taken = [];
+    labelSpecs.filter(s => s.ll).forEach(spec => {
+      let pt = map.latLngToContainerPoint(spec.ll);
+      let guard = 0;
+      while (taken.some(t => Math.abs(t.x - pt.x) < 190 && Math.abs(t.y - pt.y) < 40) && guard++ < 20) pt = pt.add([0, 42]);
+      taken.push(pt);
+      const ll = map.containerPointToLatLng(pt);
+      const sub = spec.nat ? "couverture nationale" : spec.sub;
+      const mk = L.marker(ll, { pane: "etiquettes", isLabel: true, keyboard: false,
+        icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<div class="plabel${spec.nat ? " nat" : ""}">${esc(spec.p.nom)}<small>${sub}</small></div>` }) });
+      mk.on("click", () => go({ kind: "proj", id: spec.p.id }));
+      hl.addLayer(mk);
+      if (ownerLL) {
+        const line = L.polyline([ownerLL, ll], { pane: "liens", isLabel: true, interactive: false, color: css("--porteur"), weight: 1.5, dashArray: "4 5", opacity: 0.9 });
+        hl.addLayer(line);
+      }
+    });
+  }
+  map.on("zoomend", () => {
+    if (!state.view || !labelSpecs.length) return;
+    const o = state.view.kind === "struct" ? SJ[state.view.id] : state.view.kind === "proj" ? SJ[PJ[state.view.id].structure] : null;
+    placeLabels(o ? L.latLng(o.lat, o.lng) : null);
+  });
+
+  function highlightPref(id) {
+    hl.clearLayers(); labelSpecs = [];
+    const f = featuresFor([id]);
+    const g = L.geoJSON({ type: "FeatureCollection", features: f }, { pane: "zones", interactive: false,
+      style: () => ({ color: css("--fg"), weight: 2.5, fillOpacity: 0 }) });
+    hl.addLayer(g);
+    map.fitBounds(g.getBounds(), { padding: [80, 80], maxZoom: 10, animate: false });
+  }
+
+  // ---------- panneau
+  const portee = p => p.national && p.zones_geo.length ? "Nationale, zones précisées" : p.national ? "Nationale" : p.zones_geo.length ? "Zones ciblées" : p.international ? "Internationale" : "Non précisée";
+  function zoneChips(p) {
+    const out = [];
+    if (p.national) out.push(`<span class="chip nat">Couverture nationale</span>`);
+    if (p.international) out.push(`<span class="chip nat">International</span>`);
+    if (p.zones_geo.length >= 37) out.push(`<span class="chip">Toutes les préfectures</span>`);
+    else p.regions.forEach(r => {
+      const prefs = p.prefectures.filter(x => REG[r].includes(x));
+      out.push(`<span class="chip"><strong>${esc(r)}</strong>${prefs.length === REG[r].length ? " (toute la région)" : " : " + esc(prefs.join(", "))}</span>`);
+    });
+    return out.join("") || `<span class="chip">Zone non précisée</span>`;
+  }
+  const REG = {
+    "Grand Lomé": ["Golfe", "Agoè-Nyivé"], "Maritime": ["Lacs", "Vo", "Yoto", "Bas-Mono", "Zio", "Avé"],
+    "Plateaux": ["Ogou", "Anié", "Est-Mono", "Moyen-Mono", "Haho", "Kloto", "Agou", "Danyi", "Kpélé", "Amou", "Wawa", "Akébou"],
+    "Centrale": ["Tchaoudjo", "Tchamba", "Sotouboua", "Blitta", "Mô"],
+    "Kara": ["Kozah", "Binah", "Doufelgou", "Kéran", "Assoli", "Bassar", "Dankpen"],
+    "Savanes": ["Tône", "Tandjoaré", "Kpendjal", "Kpendjal-Ouest", "Oti", "Oti-Sud", "Cinkassé"],
+  };
+
+  function pcard(p, showOwner) {
+    return `<button class="pcard" type="button" data-proj="${esc(p.id)}">
+      <span class="t"><span class="dot projet"></span><span>${esc(p.nom)}${p.categorie === "activite" ? ' <span class="chip">activité générale</span>' : ""}</span></span>
+      ${showOwner ? `<span class="s" style="color:var(--porteur);font-size:.82rem;font-weight:600">${esc(SJ[p.structure].nom)}</span>` : ""}
+      <span class="chips">${zoneChips(p)}</span>
+      ${p.description && p.description !== p.nom ? `<span class="d">${esc(p.description)}</span>` : ""}
+    </button>`;
+  }
+
+  function renderList() {
+    const ss = S.filter(structMatch).sort((a, b) => projetsDe(b).length - projetsDe(a).length || a.nom.localeCompare(b.nom, "fr"));
+    const ps = P.filter(projMatch);
+    $("n-s").textContent = ss.length; $("n-p").textContent = ps.length;
+    if (state.tab === "s") {
+      $("content").innerHTML = ss.length ? `<ul class="list">${ss.map(s => {
+        const n = projetsDe(s).length;
+        return `<li><button class="item" type="button" data-struct="${esc(s.id)}"><span class="dot porteur"></span>
+          <span><span class="t">${esc(s.nom)}</span><br><span class="s">${esc(s.type)} · ${esc(s.ville)}</span></span>
+          <span class="count${n ? "" : " zero"}">${n}</span></button></li>`;
+      }).join("")}</ul>` : `<p class="empty">Aucune structure ne correspond à cette recherche.</p>`;
+    } else {
+      const groups = ["Zones ciblées", "Nationale, zones précisées", "Nationale", "Internationale", "Non précisée"];
+      $("content").innerHTML = ps.length ? groups.map(g => {
+        const items = ps.filter(p => portee(p) === g).sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+        if (!items.length) return "";
+        return `<div class="grouphead">${g} · ${items.length}</div><ul class="list">${items.map(p => `<li><button class="item" type="button" data-proj="${esc(p.id)}">
+          <span class="dot projet"></span><span><span class="t">${esc(p.nom)}</span><br><span class="s">${esc(SJ[p.structure].nom)}</span></span><span></span></button></li>`).join("")}</ul>`;
+      }).join("") : `<p class="empty">Aucune initiative ne correspond à cette recherche.</p>`;
+    }
+  }
+
+  function list(arr) { return arr && arr.length ? `<span class="chips">${arr.map(x => `<span class="chip">${esc(x)}</span>`).join("")}</span>` : "<span style='color:var(--muted)'>non renseigné</span>"; }
+
+  function renderStruct(s) {
+    const ps = projetsDe(s);
+    const hidden = s.projets.length - ps.length;
+    $("content").innerHTML = `<div class="detail">
+      <button class="back" type="button" data-back>← Retour à la liste</button>
+      <div><div class="eyebrow porteur"><span class="dot porteur" style="margin:0"></span>Structure porteuse</div><h2>${esc(s.nom)}</h2></div>
+      <dl class="kv">
+        <dt>Type</dt><dd>${esc(s.type)}</dd>
+        <dt>Nature</dt><dd>${esc(s.nature)}</dd>
+        <dt>Localisation</dt><dd>${esc([s.quartier, s.ville].filter(Boolean).join(", "))}<br><span style="color:var(--muted);font-size:.8rem">${esc(s.precision)}</span></dd>
+        <dt>Zone d'intervention</dt><dd>${esc(s.zone)}</dd>
+        <dt>Financement principal</dt><dd>${esc(s.financement)}</dd>
+        <dt>Lien avec la partie nationale</dt><dd>${esc(s.implication)}</dd>
+        <dt>Coordination nationale</dt><dd>${esc(s.coordination || "non renseigné")}</dd>
+        <dt>Domaines numériques</dt><dd>${list(s.domaines_numeriques)}</dd>
+        <dt>Outils utilisés</dt><dd>${list(s.outils)}</dd>
+      </dl>
+      <h3 class="sub">Initiatives (${ps.length})</h3>
+      <div class="stack">${ps.map(p => pcard(p, false)).join("") || `<p class="note">Aucune initiative de santé numérique décrite dans la réponse.</p>`}</div>
+      ${hidden ? `<p class="note">${hidden} activité${hidden > 1 ? "s" : ""} générale${hidden > 1 ? "s" : ""} masquée${hidden > 1 ? "s" : ""} (cocher « inclure les activités générales »).</p>` : ""}
+    </div>`;
+  }
+
+  function renderProj(p) {
+    const s = SJ[p.structure];
+    $("content").innerHTML = `<div class="detail">
+      <button class="back" type="button" data-back>← Retour</button>
+      <div><div class="eyebrow projet"><span class="dot projet" style="margin:0"></span>Initiative${p.categorie === "activite" ? " · activité générale" : ""}</div><h2>${esc(p.nom)}</h2></div>
+      <button class="ownerbtn" type="button" data-struct="${esc(s.id)}"><span class="dot porteur" style="margin:0"></span>${esc(s.nom)}</button>
+      <dl class="kv">
+        <dt>Portée</dt><dd>${esc(portee(p))}</dd>
+        <dt>Zones couvertes</dt><dd><span class="chips">${zoneChips(p)}</span></dd>
+        <dt>Bénéficiaires</dt><dd>${list(p.beneficiaires)}</dd>
+      </dl>
+      <div><h3 class="sub">Description déclarée</h3><p class="desc">${esc(p.description)}</p></div>
+    </div>`;
+  }
+
+  function renderPref(id) {
+    const f = PREFS.features.find(x => x.properties.id === id);
+    const cibles = P.filter(p => projVisible(p) && p.zones_geo.includes(id));
+    const nats = P.filter(p => projVisible(p) && p.national && !p.zones_geo.length);
+    const ici = S.filter(s => {
+      const pt = [s.lng, s.lat];
+      return L.geoJSON(f).getBounds().contains([s.lat, s.lng]) && inside(pt, f.geometry);
+    });
+    $("content").innerHTML = `<div class="detail">
+      <button class="back" type="button" data-back>← Retour à la liste</button>
+      <div><div class="eyebrow" style="color:var(--muted)">Préfecture · ${esc(f.properties.region)}</div><h2>${esc(f.properties.nom)}</h2></div>
+      <h3 class="sub">Initiatives ciblant cette préfecture (${cibles.length})</h3>
+      <div class="stack">${cibles.map(p => pcard(p, true)).join("") || `<p class="note">Aucune initiative ne cible explicitement cette préfecture.</p>`}</div>
+      <h3 class="sub">Initiatives de couverture nationale (${nats.length})</h3>
+      <div class="chips">${nats.map(p => `<button class="chip" style="cursor:pointer" type="button" data-proj="${esc(p.id)}">${esc(p.nom)}</button>`).join("")}</div>
+      ${ici.length ? `<h3 class="sub">Structures implantées (${ici.length})</h3><div class="chips">${ici.map(s => `<button class="chip" style="cursor:pointer" type="button" data-struct="${esc(s.id)}">${esc(s.nom)}</button>`).join("")}</div>` : ""}
+    </div>`;
+  }
+  function inside(pt, geom) {
+    const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
+    return polys.some(poly => {
+      let c = false; const ring = poly[0];
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [xi, yi] = ring[i], [xj, yj] = ring[j];
+        if ((yi > pt[1]) !== (yj > pt[1]) && pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi) c = !c;
+      }
+      return c;
+    });
+  }
+
+  // ---------- navigation
+  const history = [];
+  function go(view, push = true) {
+    if (push && state.view) history.push(state.view);
+    state.view = view;
+    render();
+    $("content").scrollTop = 0;
+    if (window.innerWidth < 760 && view) $("content").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function back() { state.view = history.pop() || null; render(); }
+  function restylePrefs() { prefLayer.setStyle(f => ({ color: css("--line"), weight: 1, fillColor: binColor(counts[f.properties.id]), fillOpacity: $("ltiles").checked ? 0.72 : 1 })); }
+  function render() {
+    const v = state.view;
+    restylePrefs();
+    refreshMarkers();
+    if (!v) { hl.clearLayers(); labelSpecs = []; renderList(); return; }
+    if (v.kind === "struct") { const s = SJ[v.id]; renderStruct(s); highlight(projetsDe(s), s); }
+    else if (v.kind === "proj") { const p = PJ[v.id]; renderProj(p); highlight([p], SJ[p.structure]); }
+    else if (v.kind === "pref") { renderPref(v.id); highlightPref(v.id); }
+  }
+  function refreshAll() { computeCounts(); render(); }
+
+  $("content").addEventListener("click", e => {
+    const b = e.target.closest("[data-struct],[data-proj],[data-back]");
+    if (!b) return;
+    if (b.hasAttribute("data-back")) return back();
+    if (b.dataset.struct) return go({ kind: "struct", id: b.dataset.struct });
+    if (b.dataset.proj) return go({ kind: "proj", id: b.dataset.proj });
+  });
+  const setTab = t => { state.tab = t; $("tab-s").setAttribute("aria-selected", t === "s"); $("tab-p").setAttribute("aria-selected", t === "p"); state.view = null; history.length = 0; render(); };
+  $("tab-s").onclick = () => setTab("s");
+  $("tab-p").onclick = () => setTab("p");
+  $("q").addEventListener("input", e => { state.q = e.target.value.trim(); state.view = null; history.length = 0; render(); });
+  $("ftype").addEventListener("change", e => { state.type = e.target.value; state.view = null; history.length = 0; render(); });
+  $("fact").addEventListener("change", e => { state.act = e.target.checked; refreshAll(); });
+  $("lchoro").addEventListener("change", refreshAll);
+  $("ltiles").addEventListener("change", () => { setTiles(); refreshAll(); });
+  $("btnTogo").onclick = () => map.fitBounds(togoBounds, { padding: [20, 20] });
+  $("btnLome").onclick = () => map.fitBounds([[6.11, 1.13], [6.33, 1.32]]);
+  $("aboutBtn").onclick = () => { $("about").hidden = false; $("aboutClose").focus(); };
+  $("aboutClose").onclick = () => { $("about").hidden = true; };
+  $("about").addEventListener("click", e => { if (e.target === $("about")) $("about").hidden = true; });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("about").hidden) $("about").hidden = true; else if (state.view) back(); } });
+
+  const theme = () => { setTiles(); refreshAll(); paysLayer.setStyle({ color: css("--fg") }); };
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", theme);
+  new MutationObserver(theme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  drawRamp(); setTiles(); computeCounts(); refreshAll();
+  map.fitBounds(togoBounds, { padding: [20, 20], animate: false });
+  window.addEventListener("resize", () => map.invalidateSize());
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+scripts/reponses_kobo.xlsx
+*.xlsx
+__pycache__/
